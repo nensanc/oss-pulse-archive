@@ -216,3 +216,44 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-specific
+.env
+*.env.local
+secrets/
+
+# Airflow
+airflow/logs/
+airflow/plugins/__pycache__/
+airflow/dags/__pycache__/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Data files (never commit data!)
+data/
+*.parquet
+*.json.gz
+*.csv
+
+# Local dev
+.venv/
+venv/
+.vscode/
+.idea/
+*.iml
+.DS_Store
+
+# Test outputs
+.pytest_cache/
+.coverage
+htmlcov/

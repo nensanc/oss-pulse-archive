@@ -25,13 +25,60 @@ models them in a Snowflake star schema, and exposes the data through three AI la
 | CI/CD | GitHub Actions |
 
 ## Architecture
-
-_(See `docs/architecture.md` — coming in Sprint 0.)_
-
-## Status
-
-🚧 In active development. See [ADRs](./docs/adr/) for design decisions.
-
+ 
+```
+GH Archive (JSON.gz per hour)
+        ↓
+   Airflow DAG (sensor + download)
+        ↓
+   S3 Bronze (raw JSON)
+        ↓
+   PySpark (clean, dedup, flatten)
+        ↓
+   S3 Silver (partitioned Parquet)
+        ↓
+   Snowflake (COPY INTO from external stage)
+        ↓
+   dbt (staging → intermediate → marts)
+        ↓
+   Snowflake Gold (star schema)
+        ↓
+   AI Layer (Text-to-SQL + RAG + Summaries)
+        ↓
+   Streamlit Dashboard
+```
+ 
+## Progress — Sprint 0 (Setup)
+ 
+✅ **Repo structure** — monorepo with folders for airflow/, spark/, dbt/, app/, infra/  
+✅ **AWS S3** — bronze/silver buckets in us-east-1, lifecycle policies (30d/60d), IAM least-privilege  
+✅ **Snowflake** — warehouses per workload, OSS_PULSE database with 6 schemas (medallion), functional RBAC with access roles + functional roles, resource monitor  
+✅ **S3-Snowflake integration** — storage integration with IAM role assumption (no hardcoded credentials), external stages, file format for JSON.gz  
+✅ **ADRs** — 3 architecture decision records documenting IAM least-privilege, RBAC pattern, storage integration
+ 
+**Next**: Airflow setup, first ingestion DAG, dbt setup, dimensional modeling.
+ 
+## Key Decisions (ADRs)
+ 
+- [ADR-001](./docs/adr/001-iam-least-privilege.md) — IAM Least Privilege for Pipeline User
+- [ADR-002](./docs/adr/002-snowflake-rbac-pattern.md) — Snowflake RBAC: Functional + Access Roles
+- [ADR-003](./docs/adr/003-snowflake-s3-storage-integration.md) — Snowflake-S3 Storage Integration
+## Development
+ 
+```bash
+# Setup
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt  # TBD
+ 
+# Configure environment
+cp .env.example .env
+# Edit .env with your credentials
+ 
+# Test Snowflake connection
+python -c "from dotenv import load_dotenv; import snowflake.connector, os; load_dotenv(); print('Testing...'); conn = snowflake.connector.connect(user=os.getenv('SNOWFLAKE_USER'), password=os.getenv('SNOWFLAKE_PASSWORD'), account=os.getenv('SNOWFLAKE_ACCOUNT')); print('✅ Connected')"
+```
+ 
 ## License
-
+ 
 MIT

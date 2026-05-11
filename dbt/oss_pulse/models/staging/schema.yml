@@ -11,12 +11,6 @@ sources:
         columns:
           - name: event_data
             description: Full event JSON payload (VARIANT)
-          - name: file_name
-            description: Source S3 file path
-          - name: file_row_number
-            description: Row number in source file
-          - name: loaded_at
-            description: Timestamp when data was loaded
 
 models:
   - name: stg_events
@@ -47,3 +41,51 @@ models:
         description: Original S3 file path
       - name: loaded_at
         description: When this record was loaded into Snowflake
+        
+  - name: stg_pull_requests
+    description: Staged pull request events with extracted PR details
+    columns:
+      - name: pr_key
+        description: Surrogate key for pull request event
+        tests:
+          - unique
+          - not_null
+      - name: pr_id
+        description: GitHub pull request ID
+        tests:
+          - not_null
+      - name: pr_number
+        description: Pull request number within the repository
+        tests:
+          - not_null
+      - name: pr_state
+        description: Pull request state (open, closed)
+      - name: pr_action
+        description: Action performed (opened, closed, reopened, etc.)
+        tests:
+          - not_null
+      - name: pr_merged
+        description: Whether the pull request was merged
+      - name: pr_author
+        description: GitHub login of PR author
+        
+  - name: stg_commits
+    description: Staged commits extracted from PushEvents (one commit can appear in multiple events)
+    columns:
+      - name: commit_event_key
+        description: Surrogate key for commit within an event (event_id + commit_sha)
+        tests:
+          - unique
+          - not_null
+      - name: commit_sha
+        description: Git commit SHA (40 character hex) - NOT unique globally
+        tests:
+          - not_null
+      - name: commit_author_name
+        description: Name from git commit author
+      - name: commit_author_email
+        description: Email from git commit author
+      - name: commit_message
+        description: Git commit message
+      - name: branch_ref
+        description: Branch reference (e.g., refs/heads/main)

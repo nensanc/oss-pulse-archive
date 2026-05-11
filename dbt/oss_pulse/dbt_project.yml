@@ -1,0 +1,42 @@
+name: 'oss_pulse'
+version: '1.0.0'
+config-version: 2
+
+profile: 'oss_pulse'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  oss_pulse:
+    # Staging models - clean and type the raw data
+    staging:
+      +materialized: view
+      
+    # Intermediate models - business logic transformations
+    intermediate:
+      +materialized: view
+      
+    # Marts - final dimensional model
+    marts:
+      +materialized: table
+      
+      # Core dimensions and facts
+      core:
+        +materialized: table
+        
+      # Analytics-specific marts
+      analytics:
+        +materialized: table
+
+vars:
+  # Date range for full refresh (optional)
+  start_date: '2024-01-01'

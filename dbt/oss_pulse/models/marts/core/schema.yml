@@ -1,0 +1,100 @@
+version: 2
+
+models:
+  - name: dim_users
+    description: User dimension table with unique GitHub users
+    columns:
+      - name: user_key
+        description: Surrogate key for user dimension
+        tests:
+          - unique
+          - not_null
+      - name: user_id
+        description: GitHub user ID (natural key)
+        tests:
+          - unique
+          - not_null
+      - name: login
+        description: GitHub username
+        tests:
+          - not_null
+          
+  - name: dim_repos
+    description: Repository dimension table
+    columns:
+      - name: repo_key
+        description: Surrogate key for repo dimension
+        tests:
+          - unique
+          - not_null
+      - name: repo_id
+        description: GitHub repository ID (natural key)
+        tests:
+          - unique
+          - not_null
+      - name: repo_name
+        description: Full repository name (owner/repo)
+        tests:
+          - not_null
+          
+  - name: dim_orgs
+    description: Organization dimension table
+    columns:
+      - name: org_key
+        description: Surrogate key for org dimension
+        tests:
+          - unique
+          - not_null
+      - name: org_id
+        description: GitHub organization ID (natural key)
+        tests:
+          - unique
+          - not_null
+          
+  - name: dim_time
+    description: Date dimension table (2024-2026)
+    columns:
+      - name: date_key
+        description: Date key in YYYYMMDD format
+        tests:
+          - unique
+          - not_null
+      - name: date
+        description: Calendar date
+        tests:
+          - not_null
+          
+  - name: fact_events
+    description: Fact table for GitHub events with foreign keys to dimensions
+    columns:
+      - name: event_key
+        description: Surrogate key for event
+        tests:
+          - unique
+          - not_null
+      - name: user_key
+        description: Foreign key to dim_users
+        tests:
+          - relationships:
+              to: ref('dim_users')
+              field: user_key
+      - name: repo_key
+        description: Foreign key to dim_repos
+        tests:
+          - relationships:
+              to: ref('dim_repos')
+              field: repo_key
+      - name: date_key
+        description: Foreign key to dim_time
+        tests:
+          - relationships:
+              to: ref('dim_time')
+              field: date_key
+      - name: event_id
+        description: GitHub event ID
+        tests:
+          - not_null
+      - name: event_type
+        description: Type of GitHub event
+        tests:
+          - not_null

@@ -1,0 +1,49 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Raw GitHub Archive events loaded from S3
+    database: OSS_PULSE
+    schema: RAW
+    tables:
+      - name: events
+        description: Raw GitHub events as JSON
+        columns:
+          - name: event_data
+            description: Full event JSON payload (VARIANT)
+          - name: file_name
+            description: Source S3 file path
+          - name: file_row_number
+            description: Row number in source file
+          - name: loaded_at
+            description: Timestamp when data was loaded
+
+models:
+  - name: stg_events
+    description: Staged GitHub events with parsed JSON fields
+    columns:
+      - name: event_id
+        description: Unique event identifier
+        tests:
+          - unique
+          - not_null
+      - name: event_type
+        description: Type of GitHub event (PushEvent, PullRequestEvent, etc.)
+        tests:
+          - not_null
+      - name: created_at
+        description: Event creation timestamp
+        tests:
+          - not_null
+      - name: actor_login
+        description: GitHub username who triggered the event
+      - name: repo_name
+        description: Full repository name (owner/repo)
+      - name: is_public
+        description: Whether the repository is public
+      - name: org_login
+        description: Organization name (if applicable)
+      - name: source_file
+        description: Original S3 file path
+      - name: loaded_at
+        description: When this record was loaded into Snowflake

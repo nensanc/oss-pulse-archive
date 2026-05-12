@@ -1,33 +1,33 @@
 # OSS Pulse — Development Progress
 
-## Sprint 0: Setup ✅ COMPLETED (Mayo 2026)
+## Sprint 0: Setup ✅ COMPLETED (May 2026)
 
-**Fecha**: Mayo 2026  
-**Objetivo**: Infraestructura base funcional (AWS, Snowflake, integración S3).  
-**Tiempo**: ~3 horas
+**Date**: May 2026  
+**Objective**: Functional base infrastructure (AWS, Snowflake, S3 integration).  
+**Time**: ~3 hours
 
-### Completado
+### Completed
 
 #### 1. Repo Structure ✅
-- Estructura monorepo: `airflow/`, `spark/`, `dbt/`, `app/`, `infra/`, `docs/`
-- `.gitignore` configurado para secrets, data files, build artifacts
-- `.env.example` como template
-- `docs/adr/` para Architecture Decision Records
+- Monorepo structure: `airflow/`, `spark/`, `dbt/`, `app/`, `infra/`, `docs/`
+- `.gitignore` configured for secrets, data files, build artifacts
+- `.env.example` as template
+- `docs/adr/` for Architecture Decision Records
 
 #### 2. AWS S3 ✅
 - **Buckets**:
   - `oss-pulse-bronze-2026` (us-east-1) — raw GH Archive JSON.gz
   - `oss-pulse-silver-2026` (us-east-1) — processed Parquet
 - **Lifecycle policies**:
-  - Bronze: 30 días
-  - Silver: 60 días
+  - Bronze: 30 days
+  - Silver: 60 days
 - **IAM**:
-  - Policy custom `oss-pulse-s3-rw` (least-privilege, solo 2 buckets)
-  - User `oss-pulse-pipeline` con access keys
-  - Documentado en [ADR-001](./docs/adr/001-iam-least-privilege.md)
+  - Custom policy `oss-pulse-s3-rw` (least-privilege, only 2 buckets)
+  - User `oss-pulse-pipeline` with access keys
+  - Documented in [ADR-001](./docs/adr/001-iam-least-privilege.md)
 
 #### 3. Snowflake ✅
-- **Account**: Standard edition, us-east-1, trial activo ($400 crédito)
+- **Account**: Standard edition, us-east-1, active trial ($400 credit)
 - **Warehouses** (3):
   - `WH_LOADING` (XSMALL, auto-suspend 60s)
   - `WH_TRANSFORMING` (XSMALL, auto-suspend 60s)
@@ -37,85 +37,85 @@
 - **RBAC**:
   - 4 access roles: `AR_OSS_PULSE_RAW_RW`, `AR_OSS_PULSE_STAGING_RW`, `AR_OSS_PULSE_MARTS_RW`, `AR_OSS_PULSE_MARTS_R`
   - 3 functional roles: `LOADER`, `TRANSFORMER`, `REPORTER`
-  - Service user: `SVC_OSS_PULSE` con los 3 roles
-  - Documentado en [ADR-002](./docs/adr/002-snowflake-rbac-pattern.md)
-- **Resource monitor**: `RM_OSS_PULSE` (50 créditos/mes cap)
-- **Conexión local verificada**: Python + snowflake-connector-python ✅
+  - Service user: `SVC_OSS_PULSE` with all 3 roles
+  - Documented in [ADR-002](./docs/adr/002-snowflake-rbac-pattern.md)
+- **Resource monitor**: `RM_OSS_PULSE` (50 credits/month cap)
+- **Local connection verified**: Python + snowflake-connector-python ✅
 
 #### 4. S3-Snowflake Integration ✅
 - **Storage Integration**: `S3_OSS_PULSE_INTEGRATION`
   - IAM role assumption (no hardcoded credentials)
   - AWS IAM role: `snowflake-oss-pulse-role`
-  - Trust policy con External ID de Snowflake
-  - Permissions limitadas a 2 buckets del proyecto
-  - Documentado en [ADR-003](./docs/adr/003-snowflake-s3-storage-integration.md)
+  - Trust policy with Snowflake External ID
+  - Permissions limited to 2 project buckets
+  - Documented in [ADR-003](./docs/adr/003-snowflake-s3-storage-integration.md)
 - **External Stages**:
   - `STAGE_S3_BRONZE` → `s3://oss-pulse-bronze-2026/`
   - `STAGE_S3_SILVER` → `s3://oss-pulse-silver-2026/`
 - **File Format**: `FF_GITHUB_ARCHIVE_JSON` (JSON + GZIP)
-- **Verificado**: subida a S3 → lectura desde Snowflake ✅
+- **Verified**: S3 upload → Snowflake read ✅
 
-### Costos acumulados
-- AWS: $0 (dentro de free tier)
-- Snowflake: ~$0.03 (queries de setup y tests)
+### Costs Accumulated
+- AWS: $0 (within free tier)
+- Snowflake: ~$0.03 (setup queries and tests)
 - **Total**: ~$0.03 USD
 
 ---
 
-## Sprint 1: Pipeline Core ✅ COMPLETED (Mayo 2026)
+## Sprint 1: Pipeline Core ✅ COMPLETED (May 2026)
 
-**Objetivo**: Primer DAG funcional que descarga GH Archive → S3 bronze → Snowflake raw.  
-**Tiempo Estimado**: 8-10 horas | **Tiempo Real**: ~10 horas
+**Objective**: First functional DAG downloading GH Archive → S3 bronze → Snowflake raw.  
+**Estimated Time**: 8-10 hours | **Actual Time**: ~10 hours
 
-### Completado
+### Completed
 
-#### 1. Setup Airflow ✅
-- Docker Compose con Airflow 3.0.4
-- PostgreSQL backend con LocalExecutor
-- Custom Dockerfile con FAB auth provider
-- Providers instalados: AWS, Snowflake
-- Servicios: api-server (8080), scheduler, postgres
-- Usuario admin: airflow / airflow
+#### 1. Airflow Setup ✅
+- Docker Compose with Airflow 3.0.4
+- PostgreSQL backend with LocalExecutor
+- Custom Dockerfile with FAB auth provider
+- Providers installed: AWS, Snowflake
+- Services: api-server (8080), scheduler, postgres
+- Admin user: airflow / airflow
 
-#### 2. Configuración de Conexiones ✅
-- **aws_default**: Access keys para S3
-- **snowflake_default**: Service user `SVC_OSS_PULSE` con role `LOADER`
+#### 2. Connection Configuration ✅
+- **aws_default**: Access keys for S3
+- **snowflake_default**: Service user `SVC_OSS_PULSE` with role `LOADER`
 
 #### 3. DAG `gh_archive_ingest` ✅
-- **Schedule**: Cron horario (@hourly)
+- **Schedule**: Hourly cron (@hourly)
 - **Tasks**:
-  1. `download_github_archive` - Descarga .json.gz de gharchive.org
-  2. `upload_to_s3` - Sube a `s3://oss-pulse-bronze-2026/raw/YYYY/MM/DD/HH.json.gz`
+  1. `download_github_archive` - Downloads .json.gz from gharchive.org
+  2. `upload_to_s3` - Uploads to `s3://oss-pulse-bronze-2026/raw/YYYY/MM/DD/HH.json.gz`
   3. `load_to_snowflake` - COPY INTO `OSS_PULSE.RAW.EVENTS`
-  4. `cleanup_temp_files` - Limpia archivos temporales
-- **Estado**: 181 runs exitosos, 1 fallo (99.5% success rate)
-- **Performance**: ~65 segundos promedio por run
+  4. `cleanup_temp_files` - Cleans temporary files
+- **Status**: 181 successful runs, 1 failure (99.5% success rate)
+- **Performance**: ~65 seconds average per run
 
 #### 4. DAG `gh_archive_cleanup` ✅
-- **Schedule**: Diario (@daily)
-- **Función**: Elimina archivos S3 >30 días
-- **Implementación**: AWS CLI con `--recursive` + date filter
+- **Schedule**: Daily (@daily)
+- **Function**: Deletes S3 files >30 days old
+- **Implementation**: AWS CLI with `--recursive` + date filter
 
-### Resultados
+### Results
 
-**Datos Procesados**:
-- Eventos cargados: 254,743
-- Tamaño promedio por hora: ~10 MB comprimido
-- Periodo: Enero 2024 - presente
+**Data Processed**:
+- Events loaded: 254,743
+- Average size per hour: ~10 MB compressed
+- Period: January 2024 - present
 
-**Métricas de Performance**:
-- Download: ~20 segundos
-- Upload S3: ~15 segundos
-- Load Snowflake: ~25 segundos
-- Cleanup: ~5 segundos
-- **Total**: ~65 segundos por hora
+**Performance Metrics**:
+- Download: ~20 seconds
+- Upload S3: ~15 seconds
+- Load Snowflake: ~25 seconds
+- Cleanup: ~5 seconds
+- **Total**: ~65 seconds per hour
 
-### Archivos Creados
+### Files Created
 ```
 airflow/
 ├── dags/
-│   ├── gh_archive_ingest.py      # DAG principal (ingestion pipeline)
-│   └── gh_archive_cleanup.py     # DAG de mantenimiento S3
+│   ├── gh_archive_ingest.py      # Main DAG (ingestion pipeline)
+│   └── gh_archive_cleanup.py     # S3 maintenance DAG
 ├── docker-compose.yml            # Airflow services
 ├── Dockerfile                    # Custom image
 └── requirements.txt              # Dependencies
@@ -125,92 +125,92 @@ airflow/
 
 ---
 
-## Sprint 2: Modelado dbt ✅ COMPLETED (Mayo 11, 2026)
+## Sprint 2: dbt Modeling ✅ COMPLETED (May 11, 2026)
 
-**Objetivo**: Star schema funcional en MARTS.  
-**Tiempo Estimado**: 10-12 horas | **Tiempo Real**: ~3 horas
+**Objective**: Functional star schema in MARTS.  
+**Estimated Time**: 10-12 hours | **Actual Time**: ~3 hours
 
-### Completado
+### Completed
 
-#### 1. Setup dbt-core + dbt-snowflake ✅
+#### 1. dbt-core + dbt-snowflake Setup ✅
 - dbt-core v1.11.9
 - dbt-snowflake v1.11.4
-- Proyecto: `~/GitHub/oss-pulse-archive/dbt/oss_pulse/`
-- Conexión Snowflake con role `TRANSFORMER`
-- dbt_utils v1.3.0 instalado
+- Project: `~/GitHub/oss-pulse-archive/dbt/oss_pulse/`
+- Snowflake connection with role `TRANSFORMER`
+- dbt_utils v1.3.0 installed
 
-#### 2. Modelos Staging ✅
-**`stg_events`** - Staging principal
-- Materialización: Incremental (merge strategy)
+#### 2. Staging Models ✅
+**`stg_events`** - Main staging
+- Materialization: Incremental (merge strategy)
 - Rows: 254,139
-- Parse JSON VARIANT → columnas tipadas
-- Extrae: event metadata, actor, repo, org, payload
-- Tests: 4 (unique, not_null en event_id, event_type, created_at)
+- Parse JSON VARIANT → typed columns
+- Extracts: event metadata, actor, repo, org, payload
+- Tests: 4 (unique, not_null on event_id, event_type, created_at)
 
-**`stg_pull_requests`** - Pull requests detallados
-- Materialización: Incremental
+**`stg_pull_requests`** - Detailed pull requests
+- Materialization: Incremental
 - Rows: 16,702
-- Extrae 25+ campos de PR (title, author, state, action, merged, comments, commits, additions, deletions, etc.)
+- Extracts 25+ PR fields (title, author, state, action, merged, comments, commits, additions, deletions, etc.)
 - Tests: 3 (unique pr_key, not_null pr_id, pr_number, pr_action)
 
-**`stg_commits`** - Commits individuales
-- Materialización: Incremental
+**`stg_commits`** - Individual commits
+- Materialization: Incremental
 - Rows: 230,212
-- Flatten de array payload:commits usando LATERAL FLATTEN
+- Flatten array payload:commits using LATERAL FLATTEN
 - Surrogate key: commit_event_key (event_id + commit_sha)
 - Tests: 3 (unique commit_event_key, not_null commit_event_key, commit_sha)
-- **Fix aplicado**: Composite key para manejar mismo SHA en múltiples eventos
+- **Fix applied**: Composite key to handle same SHA in multiple events
 
-#### 3. Modelos Marts - Dimensiones ✅
-**`dim_users`** - Dimensión de usuarios
+#### 3. Marts Models - Dimensions ✅
+**`dim_users`** - User dimension
 - Rows: 58,168
 - Surrogate key: user_key (MD5 hash)
 - Natural key: user_id
-- Atributos: login, display_login, url
-- Deduplicación: ROW_NUMBER() pattern
+- Attributes: login, display_login, url
+- Deduplication: ROW_NUMBER() pattern
 
-**`dim_repos`** - Dimensión de repositorios
+**`dim_repos`** - Repository dimension
 - Rows: 74,552
 - Surrogate key: repo_key (MD5 hash)
 - Natural key: repo_id
-- Atributos: repo_name, repo_url
+- Attributes: repo_name, repo_url
 
-**`dim_repos_scd2`** - Repos con SCD Type 2
-- Rows: 74,552 (snapshot inicial)
-- Campos adicionales: valid_from, valid_to, is_current
-- Preparado para tracking de cambios históricos
+**`dim_repos_scd2`** - Repos with SCD Type 2
+- Rows: 74,552 (initial snapshot)
+- Additional fields: valid_from, valid_to, is_current
+- Ready for historical change tracking
 
-**`dim_orgs`** - Dimensión de organizaciones
+**`dim_orgs`** - Organization dimension
 - Rows: 10,224
 - Surrogate key: org_key (MD5 hash)
 - Natural key: org_id
-- Atributos: login, url
+- Attributes: login, url
 
-**`dim_time`** - Dimensión de tiempo
-- Rows: 1,096 (2024-01-01 a 2026-12-31)
-- Primary key: date_key (formato YYYYMMDD)
-- Generado con: table(generator(rowcount => 1096))
-- Atributos: year, quarter, month, month_name, day, day_of_week, day_name, week_of_year, is_weekend
+**`dim_time`** - Time dimension
+- Rows: 1,096 (2024-01-01 to 2026-12-31)
+- Primary key: date_key (YYYYMMDD format)
+- Generated with: table(generator(rowcount => 1096))
+- Attributes: year, quarter, month, month_name, day, day_of_week, day_name, week_of_year, is_weekend
 
-#### 4. Modelos Marts - Hechos ✅
-**`fact_events`** - Tabla de hechos principal
+#### 4. Marts Models - Facts ✅
+**`fact_events`** - Main fact table
 - Rows: 254,743
 - Surrogate key: event_key (MD5 hash)
 - Foreign keys: user_key, repo_key, org_key, date_key
-- Medidas: event_type, created_at, is_public
-- Payload preservado como VARIANT
+- Measures: event_type, created_at, is_public
+- Payload preserved as VARIANT
 - Clustering: created_at, event_type
 
-#### 5. Tests y Documentación ✅
+#### 5. Tests and Documentation ✅
 - **Total tests**: 36 (100% passing)
 - **Coverage**:
-  - Unique constraints en PKs
-  - Not null en campos críticos
+  - Unique constraints on PKs
+  - Not null on critical fields
   - Relationships (FK validation)
-- **Documentación**: schema.yml completo con descripciones de columnas
-- **dbt docs**: Generado con lineage diagrams
+- **Documentation**: Complete schema.yml with column descriptions
+- **dbt docs**: Generated with lineage diagrams
 
-### Arquitectura Implementada
+### Architecture Implemented
 
 **Medallion Architecture:**
 ```
@@ -220,44 +220,44 @@ MARTS (Gold)     → Star schema for analytics
 ```
 
 **Design Patterns:**
-- Staging Pattern: JSON extraction con explicit type casting
-- Incremental Pattern: Merge strategy con unique_key
-- Source Pattern: `{{ source('raw', 'events') }}` para lineage
+- Staging Pattern: JSON extraction with explicit type casting
+- Incremental Pattern: Merge strategy with unique_key
+- Source Pattern: `{{ source('raw', 'events') }}` for lineage
 - Testing Pattern: Schema tests + relationship tests
 - Surrogate Key Pattern: MD5 hashes via dbt_utils
-- SCD Type 2: Historical tracking preparado
+- SCD Type 2: Historical tracking ready
 
 ### Challenges & Solutions
 
 **Challenge 1**: Schema naming - double-nested STAGING_STAGING
-- **Solución**: Removed explicit schema config, usar folder structure
+- **Solution**: Removed explicit schema config, use folder structure
 
-**Challenge 2**: Duplicate surrogate keys en dimensions
-- **Solución**: ROW_NUMBER() OVER (PARTITION BY ... ORDER BY loaded_at DESC) pattern
+**Challenge 2**: Duplicate surrogate keys in dimensions
+- **Solution**: ROW_NUMBER() OVER (PARTITION BY ... ORDER BY loaded_at DESC) pattern
 
-**Challenge 3**: Duplicate commits (mismo SHA en múltiples eventos)
-- **Solución**: Composite key `commit_event_key = MD5(event_id + commit_sha)`
+**Challenge 3**: Duplicate commits (same SHA in multiple events)
+- **Solution**: Composite key `commit_event_key = MD5(event_id + commit_sha)`
 
 **Challenge 4**: Type inference confusion
-- **Clarificación**: Snowflake determina tipos desde SQL functions, no dbt
+- **Clarification**: Snowflake determines types from SQL functions, not dbt
 
 ### Metrics
 
 **Performance**:
-- dbt run (full): ~15 segundos
-- dbt test: ~5 segundos
-- Query performance: 1.2s para top repos
+- dbt run (full): ~15 seconds
+- dbt test: ~5 seconds
+- Query performance: 1.2s for top repos
 
 **Code Quality**:
-- SQL models: ~600 líneas
-- YAML configs: ~200 líneas
-- Test coverage: 100% en PKs
+- SQL models: ~600 lines
+- YAML configs: ~200 lines
+- Test coverage: 100% on PKs
 
-**Costos**:
-- Snowflake compute: ~$0.05 por run
-- Incremental loading ahorra ~90% vs full refresh
+**Costs**:
+- Snowflake compute: ~$0.05 per run
+- Incremental loading saves ~90% vs full refresh
 
-### Archivos Creados
+### Files Created
 ```
 dbt/oss_pulse/
 ├── dbt_project.yml
@@ -286,77 +286,77 @@ dbt/oss_pulse/
 
 ---
 
-## Sprint 3: AI Layer ✅ COMPLETED (Mayo 11, 2026)
+## Sprint 3: AI Layer ✅ COMPLETED (May 11, 2026)
 
-**Objetivo**: Text-to-SQL agent + interfaz de consulta en lenguaje natural.  
-**Tiempo Estimado**: 8-10 horas | **Tiempo Real**: ~4 horas (Fase 1)
+**Objective**: Text-to-SQL agent + natural language query interface.  
+**Estimated Time**: 8-10 hours | **Actual Time**: ~4 hours (Phase 1)
 
-### Completado
+### Completed
 
-#### 1. Setup AI Environment ✅
-- Python packages instalados:
+#### 1. AI Environment Setup ✅
+- Python packages installed:
   - anthropic v0.101.0 (Claude API)
   - streamlit v1.57.0 (UI framework)
   - snowflake-connector-python v4.4.0
   - python-dotenv v1.0.0
-- Anthropic API key configurado en .env
+- Anthropic API key configured in .env
 
 #### 2. Schema Context for AI ✅
 **`schema_context.py`**
-- Documentación completa de 8 tablas para Claude
-- Incluye: nombres de columnas, tipos, descripciones
-- Ejemplos de queries por tabla
-- Guidelines de uso y patrones comunes
-- ~300 líneas de documentación estructurada
+- Complete documentation of 8 tables for Claude
+- Includes: column names, types, descriptions
+- Example queries per table
+- Usage guidelines and common patterns
+- ~300 lines of structured documentation
 
 #### 3. Text-to-SQL Agent ✅
 **`text_to_sql.py`**
-- Claude Sonnet 4.5 como engine
-- System prompt con schema completo
-- Temperature=0 para SQL determinista
-- Ejemplos few-shot en el prompt
-- Manejo de errores y retry logic
+- Claude Sonnet 4.5 as engine
+- System prompt with complete schema
+- Temperature=0 for deterministic SQL
+- Few-shot examples in prompt
+- Error handling and retry logic
 
-**Funcionalidad**:
+**Functionality**:
 - `generate_sql(question)` → SQL query string
 - Parse natural language → valid Snowflake SQL
-- Maneja queries complejos (JOINs, aggregations, filtering)
+- Handles complex queries (JOINs, aggregations, filtering)
 
 #### 4. Safety Validator ✅
-**`is_safe_query(sql)` en text_to_sql.py**
-- Bloquea operaciones peligrosas:
+**`is_safe_query(sql)` in text_to_sql.py**
+- Blocks dangerous operations:
   - DDL: DROP, CREATE, ALTER, TRUNCATE
   - DML: INSERT, UPDATE, DELETE, MERGE
-  - Otros: GRANT, REVOKE, EXEC
-- Regex con word boundaries (evita false positives)
-- Solo permite SELECT statements
+  - Others: GRANT, REVOKE, EXEC
+- Regex with word boundaries (avoids false positives)
+- Only allows SELECT statements
 - Single statement validation (no multiple queries)
 - Returns: (is_safe: bool, reason: str)
 
 #### 5. Query Executor ✅
 **`query_executor.py`**
-- Conexión Snowflake con role REPORTER
+- Snowflake connection with role REPORTER
 - Warehouse: WH_REPORTING (XSMALL)
 - `execute_query(sql)` → pandas DataFrame
 - `format_results(df, max_rows)` → formatted string
 - Proper connection cleanup (try/finally)
-- Error handling robusto
+- Robust error handling
 
 #### 6. Streamlit Chat Interface ✅
 **`app.py`**
-- Chat interface con message history
-- Sidebar con example questions (7 ejemplos)
+- Chat interface with message history
+- Sidebar with example questions (7 examples)
 - Query workflow:
   1. User input → Claude generates SQL
   2. Safety validation
   3. Execute in Snowflake
   4. Display results
-- Features implementados:
+- Implemented features:
   - Syntax-highlighted SQL display
   - Interactive DataFrames (sortable)
-  - Summary statistics para columnas numéricas
-  - **CSV export** con timestamped filenames
-  - Error handling con mensajes claros
+  - Summary statistics for numeric columns
+  - **CSV export** with timestamped filenames
+  - Error handling with clear messages
 
 ### Example Queries Working
 
@@ -379,36 +379,36 @@ dbt/oss_pulse/
 ### Testing Results
 
 **Text-to-SQL Quality**:
-- Success rate: ~95% en queries simples
-- Response time: 2-3 segundos promedio
-- SQL válido: 100% (con safety validation)
+- Success rate: ~95% on simple queries
+- Response time: 2-3 seconds average
+- Valid SQL: 100% (with safety validation)
 
 **Safety Validation**:
-- 100% de queries peligrosas bloqueadas
+- 100% of dangerous queries blocked
 - 0 false negatives
-- False positives: Fixed (CURRENT_DATE contenía "CREATE")
+- False positives: Fixed (CURRENT_DATE contained "CREATE")
 
 **Query Execution**:
-- Connection pool stable
-- Average execution: <1 segundo para queries simples
-- Error handling: Proper rollback y cleanup
+- Stable connection pool
+- Average execution: <1 second for simple queries
+- Error handling: Proper rollback and cleanup
 
 ### Features Added
 
-**Phase 1** - Core AI System (2 horas):
+**Phase 1** - Core AI System (2 hours):
 - ✅ Text-to-SQL agent
 - ✅ Safety validator
 - ✅ Query executor
 - ✅ Streamlit UI
 
-**Phase 2** - Enhancements (2 horas):
+**Phase 2** - Enhancements (2 hours):
 - ✅ CSV export functionality
 - ✅ Example questions sidebar
 - ✅ Message history persistence
 - ✅ Summary statistics
-- ✅ Error messages mejorados
+- ✅ Improved error messages
 
-### Archivos Creados
+### Files Created
 ```
 app/
 ├── app.py                    # Streamlit chat interface
@@ -423,29 +423,29 @@ app/
 **Development Time**:
 - Setup & dependencies: 30 min
 - Schema context: 30 min
-- Text-to-SQL agent: 1 hora
+- Text-to-SQL agent: 1 hour
 - Query executor: 30 min
-- Streamlit UI: 1 hora
+- Streamlit UI: 1 hour
 - CSV export: 30 min
-- **Total**: 4 horas
+- **Total**: 4 hours
 
-**API Costs** (estimado):
-- Claude API: ~$0.002 por query
-- ~$10/mes con uso moderado
+**API Costs** (estimated):
+- Claude API: ~$0.002 per query
+- ~$10/month with moderate usage
 
-**Sprint 3 Status**: ✅ **COMPLETE** (Fase 1)
+**Sprint 3 Status**: ✅ **COMPLETE** (Phase 1)
 
 ---
 
 ## 🎉 Project Complete Summary
 
-### Total Development Time: 20 horas
+### Total Development Time: 20 hours
 
-**Breakdown por Sprint:**
-- Sprint 0 (Setup): 3 horas
-- Sprint 1 (Airflow): 10 horas
-- Sprint 2 (dbt): 3 horas
-- Sprint 3 (AI): 4 horas
+**Breakdown by Sprint:**
+- Sprint 0 (Setup): 3 hours
+- Sprint 1 (Airflow): 10 hours
+- Sprint 2 (dbt): 3 hours
+- Sprint 3 (AI): 4 hours
 
 ### Complete System Architecture
 
@@ -486,21 +486,21 @@ Streamlit Chat Interface
 **Code Quality:**
 - dbt tests: 36 (100% passing)
 - Airflow success rate: 99.5%
-- SQL models: ~600 líneas
-- Python code: ~800 líneas
-- Documentation: ~500 líneas
+- SQL models: ~600 lines
+- Python code: ~800 lines
+- Documentation: ~500 lines
 
 **Performance:**
-- Ingestion latency: 65 segundos/hora
-- dbt run time: 15 segundos
-- Query response: 2-3 segundos
-- End-to-end: <2 horas (data → insights)
+- Ingestion latency: 65 seconds/hour
+- dbt run time: 15 seconds
+- Query response: 2-3 seconds
+- End-to-end: <2 hours (data → insights)
 
 **Cost Efficiency:**
-- AWS S3: ~$5/mes
-- Snowflake: ~$20/mes
-- Claude API: ~$10/mes
-- **Total: ~$35/mes**
+- AWS S3: ~$5/month
+- Snowflake: ~$20/month
+- Claude API: ~$10/month
+- **Total: ~$35/month**
 
 ### Technologies Mastered
 
@@ -537,24 +537,24 @@ Streamlit Chat Interface
 
 ### Future Enhancements (Not Implemented)
 
-**Sprint 4 Options** (si se desea continuar):
+**Sprint 4 Options** (if continuing):
 - Option A: Deploy to Streamlit Cloud (public URL)
 - Option B: Add Kafka + PySpark (Lambda Architecture)
 - Option C: RAG layer (embeddings + vector search)
 - Option D: CI/CD (GitHub Actions, automated tests)
 - Option E: Monitoring (Grafana, alerting)
 
-### Notas Finales
+### Final Notes
 
-- Proyecto diseñado para portfolio de Data Engineering
-- Demuestra expertise en modern data stack completo
-- Listo para demo a reclutadores
-- Código limpio, documentado, y production-ready
-- Arquitectura escalable y maintainable
+- Project designed as Data Engineering portfolio piece
+- Demonstrates expertise in complete modern data stack
+- Ready for recruiter demos
+- Clean, documented, production-ready code
+- Scalable and maintainable architecture
 
 ---
 
 **Status**: ✅ **PRODUCTION READY**  
-**Last Updated**: Mayo 11, 2026  
+**Last Updated**: May 11, 2026  
 **Author**: Martin - Senior Data Engineer  
 **GitHub**: github.com/yourusername/oss-pulse-archive
